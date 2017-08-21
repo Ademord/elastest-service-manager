@@ -10,6 +10,9 @@ services:
     environment:
       - ESM_PORT=8080
       - MONGO_HOST=mongo  # the mongo service
+      - SENTINEL_KAFKA_EP=kafka.demonstrator.info:9092
+      - SENTINEL_TOPIC=user-1-cyclops
+      - SENTINEL_SERIES_NAME=app-logs
     ports:
       - "8080:8080"
 
