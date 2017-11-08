@@ -81,6 +81,7 @@ class MongoDBStore(Store):
         if service_id:
             if self.ESM_DB.services.count({'id': service_id}) == 1:
                 return [
+                    # TODO: (consistency) service type is being used statically here (compare ahead)
                     ServiceType.from_dict(
                         self.ESM_DB.services.find_one({'id': service_id})
                     )
@@ -93,6 +94,7 @@ class MongoDBStore(Store):
 
             for service in self.ESM_DB.services.find():
                 services.append(
+                    # TODO (consistency) service type is being instantiated here. Can be used statically like above.
                     ServiceType().from_dict(service)
                 )
 
