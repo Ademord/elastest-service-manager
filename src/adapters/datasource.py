@@ -395,5 +395,9 @@ class InMemoryStore(Store):
 mongo_host = os.getenv('ESM_MONGO_HOST', '')
 if len(mongo_host):
     STORE = MongoDBStore(mongo_host)
+# elif os.getenv('ESM_SQL_HOST'):
+#     STORE = MySQL_Driver()
 else:
     STORE = InMemoryStore()
+
+

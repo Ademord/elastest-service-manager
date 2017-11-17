@@ -1,4 +1,3 @@
-
 import os
 from typing import List
 # import adapters.log
@@ -6,15 +5,28 @@ from typing import List
 # from esm.models.manifest import Manifest
 # from esm.models.service_instance import ServiceInstance
 # from esm.models.service_type import ServiceType
-
 # LOG = adapters.log.get_logger(name=__name__)
 
-# from storage import Storage
 from orator import Model
-from database_manager import db
 from orator.orm import belongs_to
-from orator.orm import belongs_to_many
+from orator.orm import has_many
+import pymysql
 
+from orator import DatabaseManager, Schema
+import os
+config = {
+    'mysql': {
+        'driver': 'mysql',
+        'host': os.environ.get('DATABASE_HOST', 'localhost'),
+        'database': os.environ.get('DATABASE_NAME', 'elastest'),
+        'user': os.environ.get('DATABASE_USER', 'root'),
+        'password': os.environ.get('DATABASE_PASSWORD', ''),
+        'prefix': '',
+        'port': os.environ.get('DATABASE_PORT', 3306)
+    }
+}
+db = DatabaseManager(config)
+schema = Schema(db)
 
 class Service(Model):
     __table__ = 'service_types'
@@ -46,9 +58,9 @@ class Service(Model):
 class Plan(Model):
     __table__ = 'plans'
 
-    @belongs_to_many('plan_service_types', 'relati', 'service_type_id')
-    def roles(self):
-        return Service
+    @has_many('service_id')  # foreign key
+    def manifests(self):
+        return ServiceManifest
 
     def __init__(self):
         super(Plan, self).__init__()
@@ -67,23 +79,24 @@ class Plan(Model):
 class ServiceManifest(Model):
     __table__ = 'service_manifests'
 
-    @belongs_to('service_instances')
-    def roles(self):
-        return ServiceInstance
-
-    @belongs_to('plans')
-    def roles(self):
+    @belongs_to('plan_id')  # local key
+    def plan(self):
         return Plan
 
-    @belongs_to_many('service_instance')
-    def roles(self):
+    @belongs_to('service_id')  # local key
+    def service(self):
+        return Service
+
+    @has_many('manifest_id')  # foreign key
+    def instances(self):
         return ServiceInstance
 
     def __init__(self):
         super(ServiceManifest, self).__init__()
         Model.set_connection_resolver(db)
         name = None
-        manifest_content = None
+        content = None
+        type = None
 
     def exists(self):
         # TODO must search based on unique keys that wont crash when updated
@@ -95,23 +108,34 @@ class ServiceManifest(Model):
 class ServiceInstance(Model):
     __table__ = 'service_instances'
 
+    @belongs_to('manifest_id')  # local key
+    def manifest(self):
+        return ServiceManifest
+
+    @has_many('instance_id')  # foreign key
+    def operations(self):
+        return ServiceLastOperation
+
     def __init__(self):
         super(ServiceInstance, self).__init__()
         Model.set_connection_resolver(db)
         id = None
         name = None
-        instance_content = None
-        plan_id =  None
+        context = None
 
     def exists(self):
         # TODO must search based on unique keys that wont crash when updated
-        return len(ServiceInstance.where('plan_id', 'like', '%{}%'.format(self.plan_id)).get().serialize()) > 0
+        return len(ServiceInstance.where('name', '=', '{}'.format(self.name)).get().serialize()) > 0
 
     def get_id(self):
         return self.id
 
 class ServiceLastOperation(Model):
     __table__ = 'last_operations'
+
+    @belongs_to('instance_id')  # local key
+    def instance(self):
+        return ServiceInstance
 
     def __init__(self):
         super(ServiceLastOperation, self).__init__()
@@ -122,7 +146,7 @@ class ServiceLastOperation(Model):
 
     def exists(self):
         # TODO must search based on unique keys that wont crash when updated
-        results = ServiceLastOperation.where('name', 'like', '%{}%'.format(self.name)).get().serialize()
+        results = ServiceLastOperation.where('name', '=', '{}'.format(self.name)).get().serialize()
         return len(results) > 0
 
     def get_id(self):
@@ -135,6 +159,21 @@ class MySQL_Driver():
         name = 'MySQLStorage'
         # LOG.info('Using the {storage_client}.'.format(storage_client=self.name))
         # LOG.info('{storage_client} is persistent.'.format(storage_client=self.name))
+        self.test_DB_connect_exception()
+
+    def test_DB_connect_exception(self):
+        connection = None
+        try:
+            connection = pymysql.connect(host='localhost',
+                                         user='root',
+                                         password='',
+                                         db='elastest',
+                                         charset='utf8mb4',
+                                         cursorclass=pymysql.cursors.DictCursor)
+        except:
+            raise Exception('DB is unreachable')
+        if connection:
+            connection.close()
 
     def get_service(self, service_id: str=None): # -> List[ServiceType]
         if service_id:
@@ -157,7 +196,7 @@ class MySQL_Driver():
             # return services
 
     def add_service(self, _service) -> tuple:
-        # TODO since when does an 'add' arrive with a service.id?
+         # TODO since when does an 'add' arrive with a service.id?
         # _service = service.to_dict()
         service = Service()
         service.name = _service.name
@@ -205,7 +244,7 @@ class MySQL_Driver():
             model = model.find(manifest_id)  # .serialize()\
             if model:
                 # LOG.debug("replacing <br/> with newlines")
-                model.manifest_content = model.manifest_content.replace('</br>', '\n')
+                model.content = model.content.replace('</br>', '\n')
                 return [model] # TODO adapt to [Manifest.from_dict(m)]
             else:
                 # LOG.warn('Requested manifest not found: {id}'.format(id=manifest_id))
@@ -214,15 +253,17 @@ class MySQL_Driver():
             manifests = [] or ServiceManifest.all()
             for manifest in manifests:
                 # LOG.debug("replacing <br/> with newlines")
-                manifest.manifest_content = manifest.manifest_content.replace('</br>', '\n')
+                manifest.content = manifest.content.replace('</br>', '\n')
             return manifests
 
     def add_manifest(self, manifest) -> tuple:
         manifestSQL = ServiceManifest()
-        manifestSQL.name = manifest.name
         manifestSQL.plan_id = manifest.plan_id
-        manifestSQL.manifest_content = manifest.manifest_content
-        manifestSQL.manifest_content = manifest.manifest_content.replace('\n', '</br>')
+        manifestSQL.service_id = manifest.service_id
+        manifestSQL.name = manifest.name  # TODO must change
+        manifestSQL.type = manifest.type
+        manifestSQL.content = manifest.content
+        manifestSQL.content = manifest.content.replace('\n', '</br>')
 
         # TODO this function must be updated to correctly search through the manifests
         if manifestSQL.exists():
@@ -272,21 +313,21 @@ class MySQL_Driver():
     def add_service_instance(self, instance) -> tuple:
         instanceSQL = ServiceInstance()
         instanceSQL.name = instance.name
-        instanceSQL.plan_id = instance.plan_id
-        instanceSQL.instance_content = instance.instance_content
-        instanceSQL.instance_content = instance.instance_content.replace('\n', '</br>')
+        instanceSQL.manifest_id = instance.manifest_id
+        instanceSQL.context = instance.context
+        instanceSQL.state = instance.state
+        instanceSQL.context = instance.context.replace('\n', '</br>')
         if instanceSQL.exists():
             # LOG.info('A duplicate service instance was attempted to be stored. '
             #          'Updating the existing service instance {id}.'
             #          'Content supplied:\n{content}'.format(id=service_instance.context['id'],
             #                                                content=service_instance.to_str()))
             # TODO keep consistency here
-            instances = ServiceInstance.where('plan_id', 'like', '%{}%'.format(instanceSQL.plan_id)).get()
+            instances = ServiceInstance.where('name', '=', '{}'.format(instanceSQL.name)).get()
             instanceSQL = instances.get(0)
             instanceSQL.name = instance.name
-            instanceSQL.plan_id = instance.plan_id
-            instanceSQL.instance_content = instance.instance_content
-            instanceSQL.instance_content = instance.instance_content.replace('\n', '</br>')
+            instanceSQL.context = instance.context
+            instanceSQL.context = instance.context.replace('\n', '</br>')
             instanceSQL.update()
             return 'The Service Instance already exists in the catalog. Updating the registry.', 201
         else:
@@ -337,7 +378,9 @@ class MySQL_Driver():
         if instance_id:
             last_operationSQL = ServiceLastOperation()
             last_operationSQL.name = last_operation.name
-            last_operationSQL.instance_id = last_operation.instance_id
+            last_operationSQL.state = last_operation.state
+            last_operationSQL.description = last_operation.description
+            last_operationSQL.instance_id = instance_id
             last_operationSQL.save()
             if last_operationSQL.get_id() is None:
                 return 'Could not save the Service Instance Last Operation in the DB', 500
