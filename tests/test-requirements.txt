@@ -8,3 +8,4 @@ tox
 mypy
 orator
 pymysql
+tox-docker
