@@ -47,6 +47,18 @@ services:
       - "27017"
     networks:
       - elastest
+
+  esm-mysql:
+    image: mysql
+    container_name: mysql
+    hostname: esm-mysql
+    volumes:
+      - mysql-data:/data/db
+    ports:
+      - "3306"
+    networks:
+      - elastest
+
 volumes:
   mongo-data:
     driver: local
