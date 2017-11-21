@@ -15,14 +15,14 @@ import pymysql
 from orator import DatabaseManager, Schema
 import os
 
+
 class Helper:
     def __init__(self):
         self.host = os.environ.get('DATABASE_HOST', 'localhost')
         self.user = os.environ.get('DATABASE_USER', 'root')
-        self.password = os.environ.get('DATABASE_PASSWORD', 'secret')
+        self.password = os.environ.get('DATABASE_PASSWORD', '')
         self.database = os.environ.get('DATABASE_NAME', 'mysql')
-        self.port = os.environ.get('DATABASE_PORT', 3306)
-
+        self.port = int(os.environ.get('MYSQL_3306_TCP', 3306))
         self.config = {
             'mysql': {
                 'driver': 'mysql',
@@ -429,7 +429,7 @@ class MySQL_Driver():
         if manifest_id and plan_id:
             raise Exception('Query manifests only by manifest_id OR plan_id')
         if plan_id:
-            manifests = ServiceManifestSQL.where('plan_id', 'like', '%{}%'.format(plan_id)).get().serialize()
+            manifests = ServiceManifestSQL.where('plan_id', '=', '{}'.format(plan_id)).get().serialize()
             if manifests:
                 manifest_id = manifests[0]['id']
         if manifest_id:
@@ -438,7 +438,7 @@ class MySQL_Driver():
             if model:
                 # LOG.debug("replacing <br/> with newlines")
                 model.content = model.content.replace('</br>', '\n')
-                return [model] # TODO adapt to [Manifest.from_dict(m)]
+                return [model]  # TODO adapt to [Manifest.from_dict(m)]
             else:
                 # LOG.warn('Requested manifest not found: {id}'.format(id=manifest_id))
                 return []
