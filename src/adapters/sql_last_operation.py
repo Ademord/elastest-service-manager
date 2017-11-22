@@ -35,22 +35,8 @@ class LastOperationAdapter:
             with Helper.schema.create('service_types') as table:
                 table.increments('id')
                 ''' STRINGS '''
-                table.string('id_name').unique()
-                table.string('name').unique()
-                table.string('short_name')
+                table.string('state')
                 table.string('description').nullable()
-                ''' BOOLEANS '''
-                table.boolean('bindable').nullable()
-                table.boolean('plan_updateable').nullable()
-                ''' LISTS '''
-                table.string('tags').nullable()
-                table.string('requires').nullable()
-                ''' OBJECTS '''
-                table.string('metadata').nullable()
-                table.string('dashboard_client').nullable()
-                ''' DATES '''
-                table.datetime('created_at')
-                table.datetime('updated_at')
         except:
             pass
 
@@ -59,19 +45,8 @@ class LastOperationAdapter:
         model = LastOperation()
         model.id = 1
         ''' STRINGS '''
-        model.name = 'service1'
-        model.id_name = 'service1'
-        model.short_name = 'service1'
-        model.description = 'description1'
-        ''' BOOLEANS '''
-        model.bindable = False
-        model.plan_updateable = False
-        ''' LISTS '''
-        model.tags = ['description1']
-        model.requires = ['requirement1']
-        ''' OBJECTS '''
-        model.metadata = ServiceMetadata(display_name='metadata1')
-        model.dashboard_client = DashboardClient(id='client1')
+        model.state = 'state'
+        model.description = 'description'
         return model
 
     @classmethod
@@ -83,38 +58,16 @@ class LastOperationAdapter:
     def model_sql_to_model(model_sql: LastOperationSQL) -> LastOperation:
         model = LastOperation()
         ''' STRINGS '''
-        model.name = model_sql.name
-        model.id_name = model_sql.id
-        model.short_name = model_sql.short_name
+        model.state = model_sql.state
         model.description = model_sql.description
-        ''' BOOLEANS '''
-        model.bindable = model_sql.bindable
-        model.plan_updateable = model_sql.plan_updateable
-        ''' LISTS '''
-        model.tags = json.loads(model_sql.tags)
-        model.requires = json.loads(model_sql.requires)
-        ''' OBJECTS '''
-        model.metadata = MetadataAdapter.from_blob(model_sql.metadata)
-        model.dashboard_client = DashboardClientAdapter.from_blob(model_sql.dashboard_client)
         return model
 
     @staticmethod
     def model_to_model_sql(model: LastOperation):
         model_sql = LastOperationSQL()
         ''' STRINGS '''
-        model_sql.name = model.name
-        model_sql.id_name = model.id
-        model_sql.short_name = model.short_name
+        model_sql.state = model.state
         model_sql.description = model.description
-        ''' BOOLEANS '''
-        model_sql.bindable = model.bindable
-        model_sql.plan_updateable = model.plan_updateable
-        ''' LISTS '''
-        model_sql.tags = json.dumps(model.tags)
-        model_sql.requires = json.dumps(model.requires)
-        ''' OBJECTS '''
-        model_sql.metadata = MetadataAdapter.to_blob(model.metadata)
-        model_sql.dashboard_client = DashboardClientAdapter.to_blob(model.dashboard_client)
         return model_sql
 
     @staticmethod
@@ -122,19 +75,8 @@ class LastOperationAdapter:
         model_sql = LastOperationAdapter.find_by_id_name(model.id) or None
         if model_sql:
             ''' STRINGS '''
-            model_sql.name = model.name
-            model_sql.id_name = model.id
-            model_sql.short_name = model.short_name
+            model_sql.state = model.state
             model_sql.description = model.description
-            ''' BOOLEANS '''
-            model_sql.bindable = model.bindable
-            model_sql.plan_updateable = model.plan_updateable
-            ''' LISTS '''
-            model_sql.tags = json.dumps(model.tags)
-            model_sql.requires = json.dumps(model.requires)
-            ''' OBJECTS '''
-            model_sql.metadata = MetadataAdapter.to_blob(model.metadata)
-            model_sql.dashboard_client = DashboardClientAdapter.to_blob(model.dashboard_client)
         else:
             model_sql = LastOperationAdapter.model_to_model_sql(model)
             model_sql.save()
