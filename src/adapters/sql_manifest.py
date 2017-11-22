@@ -4,7 +4,7 @@ from esm.models.service_type import Manifest
 from esm.models.dashboard_client import DashboardClient
 from esm.models.service_metadata import ServiceMetadata
 from adapters.sql_datasource import DashboardClientAdapter
-from adapters.sql_datasource import MetadataAdapter
+from adapters.sql_datasource import ServiceMetadataAdapter
 from adapters.sql_datasource import Helper
 
 import json
@@ -101,7 +101,7 @@ class ManifestAdapter:
         model.tags = json.loads(model_sql.tags)
         model.requires = json.loads(model_sql.requires)
         ''' OBJECTS '''
-        model.metadata = MetadataAdapter.from_blob(model_sql.metadata)
+        model.metadata = ServiceMetadataAdapter.from_blob(model_sql.metadata)
         model.dashboard_client = DashboardClientAdapter.from_blob(model_sql.dashboard_client)
         return model
 
@@ -120,7 +120,7 @@ class ManifestAdapter:
         model_sql.tags = json.dumps(model.tags)
         model_sql.requires = json.dumps(model.requires)
         ''' OBJECTS '''
-        model_sql.metadata = MetadataAdapter.to_blob(model.metadata)
+        model_sql.metadata = ServiceMetadataAdapter.to_blob(model.metadata)
         model_sql.dashboard_client = DashboardClientAdapter.to_blob(model.dashboard_client)
         return model_sql
 
@@ -140,7 +140,7 @@ class ManifestAdapter:
             model_sql.tags = json.dumps(model.tags)
             model_sql.requires = json.dumps(model.requires)
             ''' OBJECTS '''
-            model_sql.metadata = MetadataAdapter.to_blob(model.metadata)
+            model_sql.metadata = ServiceMetadataAdapter.to_blob(model.metadata)
             model_sql.dashboard_client = DashboardClientAdapter.to_blob(model.dashboard_client)
         else:
             model_sql = ManifestAdapter.model_to_model_sql(model)

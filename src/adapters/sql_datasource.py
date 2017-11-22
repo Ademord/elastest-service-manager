@@ -1,7 +1,10 @@
 from orator import DatabaseManager, Schema
+
 from esm.models.service_type import ServiceType
 from esm.models.dashboard_client import DashboardClient
 from esm.models.service_metadata import ServiceMetadata
+
+from esm.models.plan_metadata import PlanMetadata
 from adapters.sql_service_type import ServiceTypeAdapter
 
 from typing import List
@@ -46,7 +49,7 @@ class DashboardClientAdapter(DashboardClient):
         return cls.from_dict(dict(json.loads(blob)))
 
 
-class MetadataAdapter(ServiceMetadata):
+class ServiceMetadataAdapter(ServiceMetadata):
     @classmethod
     def to_blob(cls, model: ServiceMetadata) -> dict:
         my_dict = {}
@@ -61,6 +64,34 @@ class MetadataAdapter(ServiceMetadata):
 
     @classmethod
     def from_blob(cls, blob) -> ServiceMetadata:
+        return cls.from_dict(dict(json.loads(blob)))
+
+
+'''
+       self.swagger_types = {
+            'bullets': str,
+            'display_name': str,
+            'costs': object,
+            'extras': object
+        
+'''
+
+class PlanMetadataAdapter(PlanMetadata):
+    @classmethod
+    def to_blob(cls, model: PlanMetadata) -> dict:
+        my_dict = {}
+        ''' STRINGS '''
+        my_dict['display_name'] = model._display_name
+        my_dict['image_url'] = model._image_url
+        my_dict['long_description'] = model._long_description
+        my_dict['provider_display_name'] = model._provider_display_name
+        my_dict['documentation_url'] = model._documentation_url
+        my_dict['support_url'] = model._support_url
+        my_dict['extras'] = model._extras
+        return json.dumps(my_dict)
+
+    @classmethod
+    def from_blob(cls, blob) -> PlanMetadata:
         return cls.from_dict(dict(json.loads(blob)))
 
 

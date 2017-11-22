@@ -1,12 +1,13 @@
 from orator import Model
 from orator.orm import has_many
 
-from esm.models.service_type import Plan
+from esm.models.plan import Plan
+from esm.models.plan_metadata import PlanMetadata
 from esm.models.manifest import Manifest
 
 from esm.models.service_metadata import ServiceMetadata
 from adapters.sql_datasource import Helper
-from adapters.sql_service_type import MetadataAdapter
+from adapters.sql_service_type import ServiceMetadataAdapter
 import json
 
 
@@ -20,6 +21,20 @@ class PlanSQL(Model):
     @classmethod
     def delete_all(cls):
         Helper.db.table(cls.__table__).truncate()
+
+
+'''
+    self.swagger_types = {
+        'id': str,
+        'name': str,
+        'description': str,
+
+        'free': bool,
+        'bindable': bool
+
+        'metadata': PlanMetadata,
+    }
+'''
 
 
 class PlanAdapter:
@@ -51,12 +66,11 @@ class PlanAdapter:
         model.name = 'service1'
         model.id_name = 'service1'
         model.description = 'description1'
+        ''' BOOLEANS '''
+        model.free = True
         model.bindable = False
-        model.bindable = False
-        model.tags = ['description1']
-        model.requires = ['requirement1']
         ''' OBJECTS '''
-        model.metadata = ServiceMetadata(display_name='metadata1')
+        model.metadata = PlanMetadata(display_name='metadata1')
         return model
 
     @classmethod
@@ -67,37 +81,38 @@ class PlanAdapter:
     @staticmethod
     def model_sql_to_model(model_sql: PlanSQL) -> Plan:
         model = Plan()
+        ''' STRINGS '''
         model.name = model_sql.name
         model.id_name = model_sql.id
         model.short_name = model_sql.short_name
         model.description = model_sql.description
-        model.bindable = model_sql.bindble
-        ''' LISTS '''
-        model.tags = json.loads(model_sql.tags)
-        model.requires = json.loads(model_sql.requires)
+        ''' BOOLEANS '''
+        model.bindable = model_sql.bindable
+        model.free = model_sql.free
         ''' OBJECTS '''
-        model.metadata = MetadataAdapter.from_blob(model_sql.metadata)
+        model.metadata = ServiceMetadataAdapter.from_blob(model_sql.metadata)
         return model
 
     @staticmethod
     def model_to_model_sql(model: Plan):
         model_sql = PlanSQL()
+        ''' STRINGS '''
         model_sql.name = model.name
         model_sql.id_name = model.id
         model_sql.short_name = model.short_name
         model_sql.description = model.description
+        ''' BOOLEANS '''
         model_sql.bindable = model.bindable
-        ''' LISTS '''
-        model_sql.tags = json.dumps(model.tags)
-        model_sql.requires = json.dumps(model.requires)
+        model_sql.free = model.free
         ''' OBJECTS '''
-        model_sql.metadata = MetadataAdapter.to_blob(model.metadata)
+        model_sql.metadata = ServiceMetadataAdapter.to_blob(model.metadata)
         return model_sql
 
     @staticmethod
     def save(model: Plan) -> PlanSQL:
         model_sql = PlanAdapter.find_by_id_name(model.id) or None
         if model_sql:
+            ''' STRINGS '''
             model_sql.name = model.name
             model_sql.id_name = model.id
             model_sql.short_name = model.short_name
@@ -107,7 +122,7 @@ class PlanAdapter:
             model_sql.tags = json.dumps(model.tags)
             model_sql.requires = json.dumps(model.requires)
             ''' OBJECTS '''
-            model_sql.metadata = MetadataAdapter.to_blob(model.metadata)
+            model_sql.metadata = ServiceMetadataAdapter.to_blob(model.metadata)
         else:
             model_sql = PlanAdapter.model_to_model_sql(model)
             model_sql.save()
