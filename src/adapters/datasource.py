@@ -24,7 +24,7 @@ from esm.models.last_operation import LastOperation
 from esm.models.manifest import Manifest
 from esm.models.service_instance import ServiceInstance
 from esm.models.service_type import ServiceType
-
+from adapters.storage_sql import MySQL_Driver
 
 # TODO implement exception handling
 
@@ -258,46 +258,8 @@ class DotDict(dict):
     __delattr__ = dict.__delitem__
 
 
-class Helper:
-    def __init__(self):
-        self.host = os.environ.get('DATABASE_HOST', '127.0.0.1')
-        self.user = os.environ.get('DATABASE_USER', 'root')
-        self.password = os.environ.get('DATABASE_PASSWORD', '')
-        self.database = os.environ.get('DATABASE_NAME', 'mysql')
-        self.port = int(os.environ.get('MYSQL_3306_TCP', 3306))
-        self.config = {
-            'mysql': {
-                'driver': 'mysql',
-                'prefix': '',
-                'host': self.host,
-                'database': self.database,
-                'user': self.user,
-                'password': self.password,
-                'port': self.port
-            }
-        }
-
 class InMemoryStore(Store):
-    def test_DB_connect_exception(self):
-        import pymysql
-        connection = None
-        helper = Helper()
-        # try:
-        connection = pymysql.connect(host=helper.host,
-                                     port=helper.port,
-                                     user=helper.user,
-                                     password=helper.password,
-                                     db=helper.database,
-                                     charset='utf8mb4',
-                                     cursorclass=pymysql.cursors.DictCursor)
-        LOG.info('-------------------------------Successfully tested')
-        # except Exception as e:
-        #     raise LOG.info('DB is unreachable ', e)
-        if connection:
-            connection.close()
-
     def __init__(self) -> None:
-        self.test_DB_connect_exception()
         LOG.info('Using the InMemoryStore.')
         LOG.warn('InMemoryStore is not persistent.')
         self.ESM_DB = dict()

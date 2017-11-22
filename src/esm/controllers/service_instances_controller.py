@@ -55,13 +55,13 @@ def create_service_instance(instance_id, service, accept_incomplete=None):
         return message, code
     else:
         if connexion.request.is_json:
-            service = ServiceRequest.from_dict(connexion.request.get_json())
+            service_request = ServiceRequest.from_dict(connexion.request.get_json())
         else:
             return "Supplied body content is not or is mal-formed JSON", 400
 
-        svc_type = STORE.get_service_instance(service.service_id)
-        if len(svc_type) == 1:
-            return 'Service instance with id {id} already exists'.format(id=service.service_id), 409
+        svc_instance = STORE.get_service_instance(instance_id)
+        if len(svc_instance) == 1:
+            return 'Service instance with id {id} already exists'.format(id=instance_id), 409
         # look up manifest based on plan id
         # based on the manifest type, select the driver
         # send the manifest for creation to the target system
@@ -69,18 +69,18 @@ def create_service_instance(instance_id, service, accept_incomplete=None):
 
         # get the manifest for the service/plan
         # TODO some validation required here to ensure it's the right svc/plan
-        svc_type = STORE.get_service(service.service_id)[0]
+        svc_type = STORE.get_service(service_request.service_id)[0]
         if svc_type is None:
             return 'Unrecognised service requested to be instantiated', 404
 
         plans = svc_type.plans
-        plan = [p for p in plans if p.id == service.plan_id]
+        plan = [p for p in plans if p.id == service_request.plan_id]
         if len(plan) <= 0:
             return 'no plan found.', 404
 
         mani = STORE.get_manifest(plan_id=plan[0].id)
         if len(mani) <= 0:
-            return 'no manifest for service {plan} found.'.format(plan=service.plan_id), 404
+            return 'no manifest for service {plan} found.'.format(plan=service_request.plan_id), 404
         mani = mani[0]
 
         if accept_incomplete:  # given docker-compose runs in detached mode this is not needed - only timing can verify

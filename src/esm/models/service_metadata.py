@@ -6,7 +6,7 @@ from .base_model_ import Model
 from datetime import date, datetime
 from typing import List, Dict
 from ..util import deserialize_model
-
+import json
 
 class ServiceMetadata(Model):
     """
@@ -59,6 +59,7 @@ class ServiceMetadata(Model):
         self._documentation_url = documentation_url
         self._support_url = support_url
         self._extras = extras
+
 
     @classmethod
     def from_dict(cls, dikt) -> 'ServiceMetadata':

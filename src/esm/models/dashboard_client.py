@@ -5,7 +5,7 @@ from .base_model_ import Model
 from datetime import date, datetime
 from typing import List, Dict
 from ..util import deserialize_model
-
+import json
 
 class DashboardClient(Model):
     """
@@ -119,4 +119,3 @@ class DashboardClient(Model):
         """
 
         self._redirect_uri = redirect_uri
-
