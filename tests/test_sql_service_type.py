@@ -1,23 +1,22 @@
+from esm.models.service_type import ServiceType
+
+from adapters.sql_datasource import ServiceTypeSQL
+from adapters.sql_datasource import ServiceTypeAdapter
+from adapters.sql_datasource import DriverSQL
+
 from unittest.mock import patch
 from unittest import skipIf
 import unittest
-
-from adapters.sql_service_type import ServiceTypeSQL
-from adapters.sql_service_type import ServiceTypeAdapter
-from adapters.sql_datasource import DriverSQL
-from esm.models.service_type import ServiceType
-
+import os
 
 # @skipIf(os.getenv('MYSQL_TESTS', 'NO') != 'YES', "MYSQL_TESTS_TESTS not set in environment variables")
 class TestCaseServiceType(unittest.TestCase):
     def setUp(self):
         self.test_model = ServiceTypeAdapter.sample_model()
-        # self.test_db_connect_successful()
         ServiceTypeAdapter.create_table()
         _, self.result = DriverSQL.add_service(self.test_model)
 
     def tearDown(self):
-        # schema.drop_if_exists('services')
         DriverSQL.delete_service(self.test_model.id)
 
     def test_db_connect_successful(self):
