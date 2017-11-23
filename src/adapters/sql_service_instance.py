@@ -1,8 +1,8 @@
 from orator import Model
 
-from esm.models.service_type import ServiceInstance
-from esm.models.dashboard_client import DashboardClient
-from esm.models.service_metadata import ServiceMetadata
+from esm.models.service_instance import ServiceInstance
+from esm.models.service_type import ServiceType
+from esm.models.last_operation import LastOperation
 from adapters.sql_datasource import DashboardClientAdapter
 from adapters.sql_datasource import ServiceMetadataAdapter
 from adapters.sql_datasource import Helper
@@ -37,25 +37,13 @@ class ServiceInstanceAdapter:
     @staticmethod
     def create_table():
         try:
-            with Helper.schema.create('service_types') as table:
+            with Helper.schema.create('service_instance') as table:
                 table.increments('id')
-                ''' STRINGS '''
-                table.string('id_name').unique()
-                table.string('name').unique()
-                table.string('short_name')
-                table.string('description').nullable()
-                ''' BOOLEANS '''
-                table.boolean('bindable').nullable()
-                table.boolean('plan_updateable').nullable()
-                ''' LISTS '''
-                table.string('tags').nullable()
-                table.string('requires').nullable()
                 ''' OBJECTS '''
-                table.string('metadata').nullable()
-                table.string('dashboard_client').nullable()
-                ''' DATES '''
-                table.datetime('created_at')
-                table.datetime('updated_at')
+                table.string('service_type')
+                table.string('state')
+                table.string('context').nullable()
+
         except:
             pass
 
@@ -63,20 +51,10 @@ class ServiceInstanceAdapter:
     def sample_model() -> ServiceInstance:
         model = ServiceInstance()
         model.id = 1
-        ''' STRINGS '''
-        model.name = 'service1'
-        model.id_name = 'service1'
-        model.short_name = 'service1'
-        model.description = 'description1'
-        ''' BOOLEANS '''
-        model.bindable = False
-        model.plan_updateable = False
-        ''' LISTS '''
-        model.tags = ['description1']
-        model.requires = ['requirement1']
         ''' OBJECTS '''
-        model.metadata = ServiceMetadata(display_name='metadata1')
-        model.dashboard_client = DashboardClient(id='client1')
+        model.service_type = ServiceType()
+        model.state = LastOperation()
+        model.context = object()
         return model
 
     @classmethod
@@ -87,59 +65,29 @@ class ServiceInstanceAdapter:
     @staticmethod
     def model_sql_to_model(model_sql: ServiceInstanceSQL) -> ServiceInstance:
         model = ServiceInstance()
-        ''' STRINGS '''
-        model.name = model_sql.name
-        model.id_name = model_sql.id
-        model.short_name = model_sql.short_name
-        model.description = model_sql.description
-        ''' BOOLEANS '''
-        model.bindable = model_sql.bindable
-        model.plan_updateable = model_sql.plan_updateable
-        ''' LISTS '''
-        model.tags = json.loads(model_sql.tags)
-        model.requires = json.loads(model_sql.requires)
         ''' OBJECTS '''
-        model.metadata = ServiceMetadataAdapter.from_blob(model_sql.metadata)
-        model.dashboard_client = DashboardClientAdapter.from_blob(model_sql.dashboard_client)
+        model.service_type = ServiceMetadataAdapter.from_blob(model_sql.service_type)
+        model.state = LastOperationAdapter.from_blob(model_sql.state)
+        model.context = object()  # TODO no explict model for this, other than dict
         return model
 
     @staticmethod
     def model_to_model_sql(model: ServiceInstance):
         model_sql = ServiceInstanceSQL()
-        ''' STRINGS '''
-        model_sql.name = model.name
-        model_sql.id_name = model.id
-        model_sql.short_name = model.short_name
-        model_sql.description = model.description
-        ''' BOOLEANS '''
-        model_sql.bindable = model.bindable
-        model_sql.plan_updateable = model.plan_updateable
-        ''' LISTS '''
-        model_sql.tags = json.dumps(model.tags)
-        model_sql.requires = json.dumps(model.requires)
         ''' OBJECTS '''
-        model_sql.metadata = ServiceMetadataAdapter.to_blob(model.metadata)
-        model_sql.dashboard_client = DashboardClientAdapter.to_blob(model.dashboard_client)
+        model_sql.service_type = ServiceMetadataAdapter.to_blob(model.service_type)
+        model_sql.state = LastOperationAdapter.to_blob(model.state)
+        model_sql.context = object()  # TODO no explict model for this, other than dict
         return model_sql
 
     @staticmethod
     def save(model: ServiceInstance) -> ServiceInstanceSQL:
         model_sql = ServiceInstanceAdapter.find_by_id_name(model.id) or None
         if model_sql:
-            ''' STRINGS '''
-            model_sql.name = model.name
-            model_sql.id_name = model.id
-            model_sql.short_name = model.short_name
-            model_sql.description = model.description
-            ''' BOOLEANS '''
-            model_sql.bindable = model.bindable
-            model_sql.plan_updateable = model.plan_updateable
-            ''' LISTS '''
-            model_sql.tags = json.dumps(model.tags)
-            model_sql.requires = json.dumps(model.requires)
             ''' OBJECTS '''
-            model_sql.metadata = ServiceMetadataAdapter.to_blob(model.metadata)
-            model_sql.dashboard_client = DashboardClientAdapter.to_blob(model.dashboard_client)
+            model_sql.service_type = ServiceMetadataAdapter.to_blob(model.service_type)
+            model_sql.state = LastOperationAdapter.to_blob(model.state)
+            model_sql.context = object()  # TODO no explict model for this, other than dict
         else:
             model_sql = ServiceInstanceAdapter.model_to_model_sql(model)
             model_sql.save()

@@ -1,10 +1,6 @@
 from orator import Model
 
 from esm.models.manifest import Manifest
-from esm.models.dashboard_client import DashboardClient
-from esm.models.service_metadata import ServiceMetadata
-from adapters.sql_datasource import DashboardClientAdapter
-from adapters.sql_datasource import ServiceMetadataAdapter
 from adapters.sql_datasource import Helper
 
 import json
@@ -35,11 +31,12 @@ class ManifestSQL(Model):
 
 '''
 
+
 class ManifestAdapter:
     @staticmethod
     def create_table():
         try:
-            with Helper.schema.create('service_types') as table:
+            with Helper.schema.create('service_manifest') as table:
                 table.increments('id')
                 ''' STRINGS '''
                 # TODO note that the field is to be rendered as id to be compliant with OSBA
@@ -64,7 +61,7 @@ class ManifestAdapter:
         model.manifest_type = 'manifest_type'
         model.manifest_content = 'manifest_content'
         ''' OBJECTS '''
-        model.endpoints = object()  # TODO no explict model for this
+        model.endpoints = object()  # TODO no explict model for this, dict is narrower
         return model
 
     @classmethod
@@ -90,7 +87,7 @@ class ManifestAdapter:
     def model_to_model_sql(model: Manifest):
         model_sql = ManifestSQL()
         ''' STRINGS '''
-        model_sql.id_name = model.id_name
+        model_sql.id_name = model.id
         model_sql.plan_id = model.plan_id
         model_sql.service_id = model.service_id
         model_sql.manifest_type = model.manifest_type
@@ -105,7 +102,7 @@ class ManifestAdapter:
         model_sql = ManifestAdapter.find_by_id_name(model.id) or None
         if model_sql:
             ''' STRINGS '''
-            model_sql.id_name = model.id_name
+            model_sql.id_name = model.id
             model_sql.plan_id = model.plan_id
             model_sql.service_id = model.service_id
             model_sql.manifest_type = model.manifest_type

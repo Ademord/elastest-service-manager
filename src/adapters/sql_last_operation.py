@@ -32,7 +32,7 @@ class LastOperationAdapter:
     @staticmethod
     def create_table():
         try:
-            with Helper.schema.create('service_types') as table:
+            with Helper.schema.create('service_last_op') as table:
                 table.increments('id')
                 ''' STRINGS '''
                 table.string('state')
