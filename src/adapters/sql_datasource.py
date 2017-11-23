@@ -1,6 +1,7 @@
 from esm.models.service_type import ServiceType
 from esm.models.dashboard_client import DashboardClient
 from esm.models.service_metadata import ServiceMetadata
+from esm.models.last_operation import LastOperation
 
 from esm.models.plan import Plan
 from esm.models.plan_metadata import PlanMetadata
@@ -561,6 +562,21 @@ class ServiceMetadataAdapter(ServiceMetadata):
 
     @classmethod
     def from_blob(cls, blob) -> ServiceMetadata:
+        return cls.from_dict(dict(json.loads(blob)))
+
+
+class LastOperationAdapter(LastOperation):
+    @classmethod
+    def to_blob(cls, model: LastOperation) -> dict:
+        my_dict = {}
+        ''' STRINGS '''
+        my_dict['state'] = model.state
+        my_dict['description'] = model.description
+
+        return json.dumps(my_dict)
+
+    @classmethod
+    def from_blob(cls, blob) -> LastOperation:
         return cls.from_dict(dict(json.loads(blob)))
 
 

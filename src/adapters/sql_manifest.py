@@ -1,10 +1,6 @@
 from orator import Model
 
-from esm.models.service_type import Manifest
-from esm.models.dashboard_client import DashboardClient
-from esm.models.service_metadata import ServiceMetadata
-from adapters.sql_datasource import DashboardClientAdapter
-from adapters.sql_datasource import ServiceMetadataAdapter
+from esm.models.manifest import Manifest
 from adapters.sql_datasource import Helper
 
 import json
@@ -35,29 +31,22 @@ class ManifestSQL(Model):
 
 '''
 
+
 class ManifestAdapter:
     @staticmethod
     def create_table():
         try:
-            with Helper.schema.create('service_types') as table:
+            with Helper.schema.create('service_manifest') as table:
                 table.increments('id')
                 ''' STRINGS '''
+                # TODO note that the field is to be rendered as id to be compliant with OSBA
                 table.string('id_name').unique()
-                table.string('name').unique()
-                table.string('short_name')
-                table.string('description').nullable()
-                ''' BOOLEANS '''
-                table.boolean('bindable').nullable()
-                table.boolean('plan_updateable').nullable()
-                ''' LISTS '''
-                table.string('tags').nullable()
-                table.string('requires').nullable()
+                table.string('plan_id')
+                table.string('service_id')
+                table.string('manifest_type')
+                table.string('manifest_content')
                 ''' OBJECTS '''
-                table.string('metadata').nullable()
-                table.string('dashboard_client').nullable()
-                ''' DATES '''
-                table.datetime('created_at')
-                table.datetime('updated_at')
+                table.string('endpoints').nullable()
         except:
             pass
 
@@ -66,19 +55,13 @@ class ManifestAdapter:
         model = Manifest()
         model.id = 1
         ''' STRINGS '''
-        model.name = 'service1'
-        model.id_name = 'service1'
-        model.short_name = 'service1'
-        model.description = 'description1'
-        ''' BOOLEANS '''
-        model.bindable = False
-        model.plan_updateable = False
-        ''' LISTS '''
-        model.tags = ['description1']
-        model.requires = ['requirement1']
+        model.id_name = 'id_name'
+        model.plan_id = 'plan_id'
+        model.service_id = 'service_id'
+        model.manifest_type = 'manifest_type'
+        model.manifest_content = 'manifest_content'
         ''' OBJECTS '''
-        model.metadata = ServiceMetadata(display_name='metadata1')
-        model.dashboard_client = DashboardClient(id='client1')
+        model.endpoints = object()  # TODO no explict model for this, dict is narrower
         return model
 
     @classmethod
@@ -90,38 +73,28 @@ class ManifestAdapter:
     def model_sql_to_model(model_sql: ManifestSQL) -> Manifest:
         model = Manifest()
         ''' STRINGS '''
-        model.name = model_sql.name
-        model.id_name = model_sql.id
-        model.short_name = model_sql.short_name
-        model.description = model_sql.description
-        ''' BOOLEANS '''
-        model.bindable = model_sql.bindable
-        model.plan_updateable = model_sql.plan_updateable
-        ''' LISTS '''
-        model.tags = json.loads(model_sql.tags)
-        model.requires = json.loads(model_sql.requires)
+        model.id_name = model_sql.id_name
+        model.plan_id = model_sql.plan_id
+        model.service_id = model_sql.service_id
+        model.manifest_type = model_sql.manifest_type
+        model.manifest_content = model_sql.manifest_content
         ''' OBJECTS '''
-        model.metadata = ServiceMetadataAdapter.from_blob(model_sql.metadata)
-        model.dashboard_client = DashboardClientAdapter.from_blob(model_sql.dashboard_client)
+        model.endpoints = model_sql.endpoints  # TODO no explict model for this the adapter???
+        # model.dashboard_client = DashboardClientAdapter.from_blob(model_sql.dashboard_client)
         return model
 
     @staticmethod
     def model_to_model_sql(model: Manifest):
         model_sql = ManifestSQL()
         ''' STRINGS '''
-        model_sql.name = model.name
         model_sql.id_name = model.id
-        model_sql.short_name = model.short_name
-        model_sql.description = model.description
-        ''' BOOLEANS '''
-        model_sql.bindable = model.bindable
-        model_sql.plan_updateable = model.plan_updateable
-        ''' LISTS '''
-        model_sql.tags = json.dumps(model.tags)
-        model_sql.requires = json.dumps(model.requires)
+        model_sql.plan_id = model.plan_id
+        model_sql.service_id = model.service_id
+        model_sql.manifest_type = model.manifest_type
+        model_sql.manifest_content = model.manifest_content
         ''' OBJECTS '''
-        model_sql.metadata = ServiceMetadataAdapter.to_blob(model.metadata)
-        model_sql.dashboard_client = DashboardClientAdapter.to_blob(model.dashboard_client)
+        model_sql.endpoints = model.endpoints  # TODO no explict model for this the adapter???
+        # model_sql.metadata = ServiceMetadataAdapter.to_blob(model.metadata)
         return model_sql
 
     @staticmethod
@@ -129,19 +102,14 @@ class ManifestAdapter:
         model_sql = ManifestAdapter.find_by_id_name(model.id) or None
         if model_sql:
             ''' STRINGS '''
-            model_sql.name = model.name
             model_sql.id_name = model.id
-            model_sql.short_name = model.short_name
-            model_sql.description = model.description
-            ''' BOOLEANS '''
-            model_sql.bindable = model.bindable
-            model_sql.plan_updateable = model.plan_updateable
-            ''' LISTS '''
-            model_sql.tags = json.dumps(model.tags)
-            model_sql.requires = json.dumps(model.requires)
+            model_sql.plan_id = model.plan_id
+            model_sql.service_id = model.service_id
+            model_sql.manifest_type = model.manifest_type
+            model_sql.manifest_content = model.manifest_content
             ''' OBJECTS '''
-            model_sql.metadata = ServiceMetadataAdapter.to_blob(model.metadata)
-            model_sql.dashboard_client = DashboardClientAdapter.to_blob(model.dashboard_client)
+            model_sql.endpoints = model.endpoints  # TODO no explict model for this the adapter???
+            # model_sql.metadata = ServiceMetadataAdapter.to_blob(model.metadata)
         else:
             model_sql = ManifestAdapter.model_to_model_sql(model)
             model_sql.save()
