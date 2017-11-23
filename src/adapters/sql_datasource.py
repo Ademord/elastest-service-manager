@@ -7,12 +7,13 @@ from esm.models.plan_metadata import PlanMetadata
 
 from orator import DatabaseManager, Schema
 from orator import Model
+from orator.orm import belongs_to_many
+
 from typing import List
 import pymysql
 import json
 import time
 import os
-
 
 
 '''
@@ -30,13 +31,39 @@ import os
 class PlanSQL(Model):
     __table__ = 'plans'
 
+    @belongs_to_many
+    def services(self):
+        return ServiceTypeSQL
+
     def __init__(self):
         super(PlanSQL, self).__init__()
         Model.set_connection_resolver(Helper.db)
 
     @classmethod
     def delete_all(cls):
-        Helper.db.table(cls.__table__).truncate()
+        if Helper.schema.has_table(cls.__table__):
+            Helper.db.table(cls.__table__).truncate()
+
+    @classmethod
+    def create_table(cls):
+        with Helper.schema.create(cls.__table__) as table:
+            table.increments('id')
+            ''' STRINGS '''
+            table.string('id_name').unique()
+            table.string('name').unique()
+            table.string('description').nullable()
+            ''' BOOLEANS '''
+            table.boolean('free').nullable()
+            table.boolean('bindable').nullable()
+            ''' OBJECTS '''
+            table.string('metadata').nullable()
+            ''' DATES '''
+            table.datetime('created_at')
+            table.datetime('updated_at')
+
+    @classmethod
+    def table_exists(cls):
+        return Helper.schema.has_table(cls.__table__)
 
 
 '''
@@ -56,32 +83,16 @@ class PlanSQL(Model):
 class PlanAdapter:
     @staticmethod
     def create_table():
-        try:
-            with Helper.schema.create('plans') as table:
-                table.increments('id')
-                ''' STRINGS '''
-                table.string('id_name').unique()
-                table.string('name').unique()
-                table.string('description').nullable()
-                ''' BOOLEANS '''
-                table.boolean('free').nullable()
-                table.boolean('bindable').nullable()
-                ''' OBJECTS '''
-                table.string('metadata').nullable()
-                ''' DATES '''
-                table.datetime('created_at')
-                table.datetime('updated_at')
-        except:
-            pass
+        if not PlanSQL.table_exists():
+            PlanSQL.create_table()
 
     @staticmethod
-    def sample_model() -> Plan:
+    def sample_model(name='plan1') -> Plan:
         model = Plan()
-        model.id = 1
         ''' STRINGS '''
-        model.name = 'service1'
-        model.id_name = 'service1'
-        model.description = 'description1'
+        model.name = name
+        model.id = name
+        model.description = name
         ''' BOOLEANS '''
         model.free = True
         model.bindable = False
@@ -174,6 +185,20 @@ class PlanAdapter:
         else:
             return False
 
+    @staticmethod
+    def plans_sql_from_service(service: ServiceType):
+        return [PlanAdapter.model_to_model_sql(plan) for plan in service.plans]
+
+    @staticmethod
+    def plans_from_service_sql(service_sql):
+        # results = []
+        # for plan_sql in service_sql.plans.all():
+        #     plan = PlanAdapter.model_sql_to_model(plan_sql)
+        #     results.append(plan)
+        return [PlanAdapter.model_sql_to_model(plan_sql) for plan_sql in service_sql.plans.all()]
+        # return results
+
+
 '''
        self.swagger_types = {
             'bullets': str,
@@ -216,8 +241,8 @@ class DriverSQL:
                 cursorclass=pymysql.cursors.DictCursor
             )
             return connection
-        except:
-            # Time required to setup the database
+        except pymysql.err.OperationalError as e:
+            print('* Error connecting to DB: ', e)
             return None
 
     @staticmethod
@@ -251,12 +276,13 @@ class DriverSQL:
 
     @staticmethod
     def add_service(service: ServiceType) -> tuple:
-        # TODO get plan and save it
         if ServiceTypeAdapter.exists_in_db(service.id):
             return 'The service already exists in the catalog.', 409
 
+        PlanAdapter.create_table()
+        PlanServiceTypeAdapter.create_table()
+
         ServiceTypeAdapter.save(service)
-        # PlansAdapter.add_from_service(service) # ADDS ASSOCIATED PLANS TO THIS SERVICE
         if ServiceTypeAdapter.exists_in_db(service.id):
             return 'Service added successfully', 200
         else:
@@ -267,12 +293,13 @@ class DriverSQL:
         if service_id:
             if ServiceTypeAdapter.exists_in_db(service_id):
                 ServiceTypeAdapter.delete(service_id)
-                # PlansAdapter.delete_from_service(service) # DELETES ASSOCIATED PLANS TO THIS SERVICE
                 return 'Service Deleted', 200
             else:
                 return 'Service ID not found', 500
         else:
+            PlanServiceTypeAdapter.delete_all()
             ServiceTypeAdapter.delete_all()
+            PlanAdapter.delete_all()
             return 'Deleted all Services', 200
 
 
@@ -291,50 +318,95 @@ class DriverSQL:
 class ServiceTypeSQL(Model):
     __table__ = 'service_types'
 
+    @belongs_to_many
+    def plans(self):
+        return PlanSQL
+
     def __init__(self):
         super(ServiceTypeSQL, self).__init__()
         Model.set_connection_resolver(Helper.db)
 
     @classmethod
     def delete_all(cls):
-        Helper.db.table(cls.__table__).truncate()
+        if Helper.schema.has_table(cls.__table__):
+            Helper.db.table(cls.__table__).truncate()
+
+    @classmethod
+    def create_table(cls):
+        with Helper.schema.create('service_types') as table:
+            table.increments('id')
+            ''' STRINGS '''
+            table.string('id_name').unique()
+            table.string('name').unique()
+            table.string('short_name')
+            table.string('description').nullable()
+            ''' BOOLEANS '''
+            table.boolean('bindable').nullable()
+            table.boolean('plan_updateable').nullable()
+            ''' LISTS '''
+            table.string('tags').nullable()
+            table.string('requires').nullable()
+            ''' OBJECTS '''
+            table.string('metadata').nullable()
+            table.string('dashboard_client').nullable()
+            ''' DATES '''
+            table.datetime('created_at')
+            table.datetime('updated_at')
+
+    @classmethod
+    def table_exists(cls):
+        return Helper.schema.has_table(cls.__table__)
+
+
+class PlanServiceTypeSQL(Model):
+    __table__ = 'plans_service_types'
+
+    @classmethod
+    def delete_all(cls):
+        if Helper.schema.has_table(cls.__table__):
+            Helper.schema.drop_if_exists(PlanServiceTypeSQL.__table__)
+
+    @classmethod
+    def create_table(cls):
+        with Helper.schema.create('plans_service_types') as table:
+            table.increments('id')
+            ''' STRINGS '''
+            table.integer('service_type_id').unsigned()
+            table.foreign('service_type_id').references('id').on('service_types')
+            ''' STRINGS '''
+            table.integer('plan_id').unsigned()
+            table.foreign('plan_id').references('id').on('plans')
+
+    @classmethod
+    def table_exists(cls):
+        return Helper.schema.has_table(cls.__table__)
+
+
+class PlanServiceTypeAdapter:
+    @staticmethod
+    def create_table():
+        if not PlanServiceTypeSQL.table_exists():
+            PlanServiceTypeSQL.create_table()
+
+    @classmethod
+    def delete_all(cls):
+        PlanServiceTypeSQL.delete_all()
 
 
 class ServiceTypeAdapter:
     @staticmethod
     def create_table():
-        try:
-            with Helper.schema.create('service_types') as table:
-                table.increments('id')
-                ''' STRINGS '''
-                table.string('id_name').unique()
-                table.string('name').unique()
-                table.string('short_name')
-                table.string('description').nullable()
-                ''' BOOLEANS '''
-                table.boolean('bindable').nullable()
-                table.boolean('plan_updateable').nullable()
-                ''' LISTS '''
-                table.string('tags').nullable()
-                table.string('requires').nullable()
-                ''' OBJECTS '''
-                table.string('metadata').nullable()
-                table.string('dashboard_client').nullable()
-                ''' DATES '''
-                table.datetime('created_at')
-                table.datetime('updated_at')
-        except:
-            pass
+        if not ServiceTypeSQL.table_exists():
+            ServiceTypeSQL.create_table()
 
     @staticmethod
-    def sample_model() -> ServiceType:
+    def sample_model(name='service1') -> ServiceType:
         model = ServiceType()
-        model.id = 1
         ''' STRINGS '''
-        model.name = 'service1'
-        model.id_name = 'service1'
-        model.short_name = 'service1'
-        model.description = 'description1'
+        model.id = name
+        model.name = name
+        model.short_name = name
+        model.description = 'description' + name
         ''' BOOLEANS '''
         model.bindable = False
         model.plan_updateable = False
@@ -344,11 +416,13 @@ class ServiceTypeAdapter:
         ''' OBJECTS '''
         model.metadata = ServiceMetadata(display_name='metadata1')
         model.dashboard_client = DashboardClient(id='client1')
+        ''' PLANS '''
+        model.plans = [PlanAdapter.sample_model('plan1'), PlanAdapter.sample_model('plan2')]
         return model
 
     @classmethod
-    def sample_model_sql(cls) -> ServiceTypeSQL:
-        model = cls.sample_model()
+    def sample_model_sql(cls, name='service1') -> tuple:
+        model = cls.sample_model(name)
         return cls.model_to_model_sql(model)
 
     @staticmethod
@@ -368,10 +442,11 @@ class ServiceTypeAdapter:
         ''' OBJECTS '''
         model.metadata = ServiceMetadataAdapter.from_blob(model_sql.metadata)
         model.dashboard_client = DashboardClientAdapter.from_blob(model_sql.dashboard_client)
+        model.plans = PlanAdapter.plans_from_service_sql(model_sql)
         return model
 
     @staticmethod
-    def model_to_model_sql(model: ServiceType):
+    def model_to_model_sql(model: ServiceType) -> tuple:
         model_sql = ServiceTypeSQL()
         ''' STRINGS '''
         model_sql.name = model.name
@@ -387,7 +462,8 @@ class ServiceTypeAdapter:
         ''' OBJECTS '''
         model_sql.metadata = ServiceMetadataAdapter.to_blob(model.metadata)
         model_sql.dashboard_client = DashboardClientAdapter.to_blob(model.dashboard_client)
-        return model_sql
+        ''' PLANS are lost in translation! '''
+        return model_sql, PlanAdapter.plans_sql_from_service(model)
 
     @staticmethod
     def save(model: ServiceType) -> ServiceTypeSQL:
@@ -408,8 +484,11 @@ class ServiceTypeAdapter:
             model_sql.metadata = ServiceMetadataAdapter.to_blob(model.metadata)
             model_sql.dashboard_client = DashboardClientAdapter.to_blob(model.dashboard_client)
         else:
-            model_sql = ServiceTypeAdapter.model_to_model_sql(model)
+            model_sql, plans_sql = ServiceTypeAdapter.model_to_model_sql(model)
             model_sql.save()
+            for plan in plans_sql:
+                plan.save()
+                model_sql.plans().attach(plan)
         return model_sql
 
     @staticmethod
@@ -420,7 +499,11 @@ class ServiceTypeAdapter:
     def delete(id_name: str) -> None:
         model_sql = ServiceTypeAdapter.find_by_id_name(id_name) or None
         if model_sql:
+            for plan in model_sql.plans:
+                model_sql.plans().detach(plan)
+                plan.delete()
             model_sql.delete()
+
         else:
             raise Exception('model not found on DB to delete')
 
@@ -512,4 +595,3 @@ class Helper:
     }
     db = DatabaseManager(config)
     schema = Schema(db)
-

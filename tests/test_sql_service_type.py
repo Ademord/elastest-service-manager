@@ -1,23 +1,40 @@
 from esm.models.service_type import ServiceType
 
 from adapters.sql_datasource import ServiceTypeSQL
+from adapters.sql_datasource import PlanServiceTypeSQL
 from adapters.sql_datasource import ServiceTypeAdapter
+from adapters.sql_datasource import PlanServiceTypeAdapter
+from adapters.sql_datasource import PlanAdapter
 from adapters.sql_datasource import DriverSQL
 
 from unittest.mock import patch
 from unittest import skipIf
 import unittest
 import os
+import orator
 
 # @skipIf(os.getenv('MYSQL_TESTS', 'NO') != 'YES', "MYSQL_TESTS_TESTS not set in environment variables")
 class TestCaseServiceType(unittest.TestCase):
     def setUp(self):
-        self.test_model = ServiceTypeAdapter.sample_model()
+        self.test_model = ServiceTypeAdapter.sample_model('service1')
         ServiceTypeAdapter.create_table()
+        PlanAdapter.create_table()
+        PlanServiceTypeAdapter.create_table()
         _, self.result = DriverSQL.add_service(self.test_model)
 
     def tearDown(self):
         DriverSQL.delete_service(self.test_model.id)
+        DriverSQL.delete_service(self.test_model.id)
+
+    def test_plan_service_type_create_table(self):
+        self.assertTrue(PlanServiceTypeSQL.table_exists())
+        with self.assertRaises(orator.exceptions.query.QueryException):
+            PlanServiceTypeSQL.create_table()
+
+    def test_service_type_create_table(self):
+        self.assertTrue(ServiceTypeSQL.table_exists())
+        with self.assertRaises(orator.exceptions.query.QueryException):
+            ServiceTypeSQL.create_table()
 
     def test_db_connect_successful(self):
         connection = DriverSQL.get_connection()
@@ -33,10 +50,18 @@ class TestCaseServiceType(unittest.TestCase):
         with self.assertRaises(Exception):
             DriverSQL.set_up(wait_time)
 
-    def test_sample_model(self):
+    def test_sample_model_with_plans(self):
         self.assertIsInstance(self.test_model, ServiceType)
-        model_sql = ServiceTypeAdapter.sample_model_sql()
+
+        model_sql = ServiceTypeAdapter.find_by_id_name(self.test_model.id)
         self.assertIsInstance(model_sql, ServiceTypeSQL)
+        self.assertFalse(model_sql.plans.is_empty())
+
+        plans = PlanAdapter.plans_from_service_sql(model_sql)
+        self.assertGreater(len(plans), 1)
+
+        model = ServiceTypeAdapter.model_sql_to_model(model_sql)
+        self.assertGreater(len(model.plans), 1)
 
     def test_adapter_delete(self):
         with self.assertRaises(Exception):
@@ -85,6 +110,7 @@ class TestCaseServiceType(unittest.TestCase):
     #     _, result = MySQL_Driver.add_service(service)
     #     self.assertEqual(result, 500, msg='Assert Can NOT Add')
     #     self.delete_service(service)
+    #
 
     @patch.object(ServiceTypeAdapter, 'exists_in_db')
     def test_add_service_existing(self, mock_exists):
@@ -92,14 +118,16 @@ class TestCaseServiceType(unittest.TestCase):
         _, result = DriverSQL.add_service(self.test_model)
         self.assertEqual(result, 409, msg='Assert Service Already Exists')
 
-    def test_delete_service_none(self):
-        _, result = DriverSQL.delete_service(service_id=None)
-        self.assertEqual(self.result, 200, msg='Assert Service Delete w/ \'None\'')
 
     def test_delete_service_nonexistent(self):
         _, result = DriverSQL.delete_service(self.test_model.id)
         _, result = DriverSQL.delete_service(self.test_model.id)
         self.assertEqual(result, 500, msg='Assert Delete Service Nonexistent')
+
+    def test_delete_service_none(self):
+        _, result = DriverSQL.delete_service(service_id=None)
+        self.assertEqual(self.result, 200, msg='Assert Service Delete w/ \'None\'')
+
 
     # def test_storage_class(self):
     #     from storage import Storage

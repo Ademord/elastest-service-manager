@@ -25,7 +25,7 @@ class ManifestSQL(Model):
 ''' 
     UPDATE WITH:
          self.swagger_types = {
-            'id': str,
+            'id_name': str,
             'plan_id': str,
             'service_id': str,
             'manifest_type': str,
