@@ -3,8 +3,9 @@ from orator import Model
 from esm.models.service_instance import ServiceInstance
 from esm.models.service_type import ServiceType
 from esm.models.last_operation import LastOperation
-from adapters.sql_datasource import DashboardClientAdapter
-from adapters.sql_datasource import ServiceMetadataAdapter
+from adapters.sql_datasource import LastOperationAdapter
+# from adapters.sql_datasource import ServiceMetadataAdapter
+from adapters.sql_datasource import ServiceTypeAdapter
 from adapters.sql_datasource import Helper
 
 import json
@@ -66,7 +67,7 @@ class ServiceInstanceAdapter:
     def model_sql_to_model(model_sql: ServiceInstanceSQL) -> ServiceInstance:
         model = ServiceInstance()
         ''' OBJECTS '''
-        model.service_type = ServiceMetadataAdapter.from_blob(model_sql.service_type)
+        model.service_type = ServiceTypeAdapter.from_blob(model_sql.service_type)
         model.state = LastOperationAdapter.from_blob(model_sql.state)
         model.context = object()  # TODO no explict model for this, other than dict
         return model
@@ -75,7 +76,7 @@ class ServiceInstanceAdapter:
     def model_to_model_sql(model: ServiceInstance):
         model_sql = ServiceInstanceSQL()
         ''' OBJECTS '''
-        model_sql.service_type = ServiceMetadataAdapter.to_blob(model.service_type)
+        model_sql.service_type = ServiceTypeAdapter.to_blob(model.service_type)
         model_sql.state = LastOperationAdapter.to_blob(model.state)
         model_sql.context = object()  # TODO no explict model for this, other than dict
         return model_sql
@@ -85,7 +86,7 @@ class ServiceInstanceAdapter:
         model_sql = ServiceInstanceAdapter.find_by_id_name(model.id) or None
         if model_sql:
             ''' OBJECTS '''
-            model_sql.service_type = ServiceMetadataAdapter.to_blob(model.service_type)
+            model_sql.service_type = ServiceTypeAdapter.to_blob(model.service_type)
             model_sql.state = LastOperationAdapter.to_blob(model.state)
             model_sql.context = object()  # TODO no explict model for this, other than dict
         else:
