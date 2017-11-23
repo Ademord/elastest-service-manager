@@ -17,6 +17,21 @@ import time
 import os
 
 
+class LastOperationAdapter(LastOperation):
+    @classmethod
+    def to_blob(cls, model: LastOperation) -> dict:
+        my_dict = {}
+        ''' STRINGS '''
+        my_dict['state'] = model.state
+        my_dict['description'] = model.description
+
+        return json.dumps(my_dict)
+
+    @classmethod
+    def from_blob(cls, blob) -> LastOperation:
+        return cls.from_dict(dict(json.loads(blob)))
+
+
 '''
     ********************
     ********************
@@ -562,21 +577,6 @@ class ServiceMetadataAdapter(ServiceMetadata):
 
     @classmethod
     def from_blob(cls, blob) -> ServiceMetadata:
-        return cls.from_dict(dict(json.loads(blob)))
-
-
-class LastOperationAdapter(LastOperation):
-    @classmethod
-    def to_blob(cls, model: LastOperation) -> dict:
-        my_dict = {}
-        ''' STRINGS '''
-        my_dict['state'] = model.state
-        my_dict['description'] = model.description
-
-        return json.dumps(my_dict)
-
-    @classmethod
-    def from_blob(cls, blob) -> LastOperation:
         return cls.from_dict(dict(json.loads(blob)))
 
 
