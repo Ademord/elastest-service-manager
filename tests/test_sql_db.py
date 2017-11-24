@@ -11,7 +11,7 @@ import os
 DriverSQL.set_up()
 
 
-# @skipIf(os.getenv('MYSQL_TESTS', 'NO') != 'YES', "MYSQL_TESTS_TESTS not set in environment variables")
+@skipIf(os.getenv('MYSQL_TESTS', 'NO') != 'YES', "MYSQL_TESTS_TESTS not set in environment variables")
 class TestCaseManifestManifest(unittest.TestCase):
 
     def test_db_connect_successful(self):

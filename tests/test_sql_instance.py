@@ -10,8 +10,7 @@ import orator
 import os
 
 
-
-# @skipIf(os.getenv('MYSQL_TESTS', 'NO') != 'YES', "MYSQL_TESTS_TESTS not set in environment variables")
+@skipIf(os.getenv('MYSQL_TESTS', 'NO') != 'YES', "MYSQL_TESTS_TESTS not set in environment variables")
 class TestCaseServiceInstance(unittest.TestCase):
     def setUp(self):
         ''' PREREQUISITES'''
@@ -58,69 +57,6 @@ class TestCaseServiceInstance(unittest.TestCase):
         result = DriverSQL.get_service_instance(instance_id=self.id_name)
         self.assertGreater(len(result), 0)
         self.assertIsInstance(result[0], ServiceInstance)
-
-    # @patch.object(ServiceInstance, 'find')
-    # def test_get_instance_with_instance_id_none_found(self, mock_find):
-    #     mock_find.return_value = None
-    #     result = DriverSQL.get_service_instance(instance_id=self.id_name)
-    #     self.assertEqual(len(result), 0)
-
-    # def test_get_instance_with_nothing(self):
-    #     instance = self.test_instance
-    #     instance.save()
-    #     result = MySQL_Driver.get_service_instance(instance_id=None)
-    #     self.assertGreater(len(result), 0)
-    #     self.assertIsInstance(result[0], ServiceInstance)
-    #
-    # def add_instance(self, instance):
-    #     _, result = MySQL_Driver.add_service_instance(instance)
-    #     self.assertEqual(result, 200, msg='Assert Service Instance Successful Add')
-    #     instances = ServiceInstance.where('name', '=', '{}'.format(instance.name)).get().serialize()
-    #     self.assertEqual(len(instances), 1, msg='Assert Service Instance exists.')
-    #
-    # def delete_instance(self, instance):
-    #     _, result = MySQL_Driver.delete_service_instance(self.get_id_by_name(instance.name))
-    #     self.assertEqual(result, 200, msg='Assert Service Deleted' + ' ' + _)
-    #     instances = ServiceInstance.where('name', '=', '{}'.format(instance.name)).get().serialize()
-    #     self.assertEqual(len(instances), 0, msg='Assert Service Instance does NOT Exist.')
-    #
-    # def get_id_by_name(self, name):
-    #     service = ServiceInstance.where('name', '=', '{}'.format(name)).get().first()
-    #     self.assertIsNotNone(service, msg='Assert get ID by Name')
-    #     return service.id
-    #
-    # def test_add_delete_instance(self):
-    #     instance = self.test_instance
-    #     self.add_instance(instance)
-    #     self.delete_instance(instance)
-    #
-    # @patch.object(ServiceInstance, 'get_id')
-    # def test_add_instance_unsucessful(self, mock_id):
-    #     instance = self.test_instance
-    #     mock_id.return_value = None
-    #     _, result = MySQL_Driver.add_service_instance(instance)
-    #     self.assertEqual(result, 500, msg='Assert Can NOT Add Service Instance')
-    #     self.delete_instance(instance)
-    #
-    # def test_add_instance_existing(self):
-    #     instance = self.test_instance
-    #     self.add_instance(instance)
-    #     _, result = MySQL_Driver.add_service_instance(instance)
-    #     self.assertEqual(result, 201, msg='Assert Service Instance Already Exists')
-    #     instances = ServiceInstance.where('name', '=', '{}'.format(instance.name)).get().serialize()
-    #     self.assertEqual(len(instances), 1, msg='Assert Service Instance exists.')
-    #     self.delete_instance(instance)
-    #
-    # def test_delete_instance_none(self):
-    #     _, result = MySQL_Driver.delete_service_instance(None)
-    #     self.assertEqual(result, 500, msg='Assert Delete Service ID None')
-    #
-    # def test_delete_instance_nonexistent(self):
-    #     id = 126256598
-    #     _, result = MySQL_Driver.delete_service_instance(id)
-    #     self.assertEqual(result, 500, msg='Assert Delete Service ID Nonexistent')
-
-# MANIFEST
 
     def test_adapter_delete(self):
         with self.assertRaises(Exception):

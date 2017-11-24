@@ -13,7 +13,8 @@ import unittest
 import os
 import orator
 
-# @skipIf(os.getenv('MYSQL_TESTS', 'NO') != 'YES', "MYSQL_TESTS_TESTS not set in environment variables")
+
+@skipIf(os.getenv('MYSQL_TESTS', 'NO') != 'YES', "MYSQL_TESTS_TESTS not set in environment variables")
 class TestCaseServiceType(unittest.TestCase):
     def setUp(self):
         self.test_model = ServiceTypeAdapter.sample_model('service1')

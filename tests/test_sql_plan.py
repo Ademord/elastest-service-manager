@@ -13,7 +13,7 @@ import os
 import orator
 
 
-# @skipIf(os.getenv('MYSQL_TESTS', 'NO') != 'YES', "MYSQL_TESTS_TESTS not set in environment variables")
+@skipIf(os.getenv('MYSQL_TESTS', 'NO') != 'YES', "MYSQL_TESTS_TESTS not set in environment variables")
 class TestCasePlan(unittest.TestCase):
 
     def setUp(self):

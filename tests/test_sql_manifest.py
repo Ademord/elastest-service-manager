@@ -18,7 +18,8 @@ from unittest import skipIf
 import unittest
 import os
 
-# @skipIf(os.getenv('MYSQL_TESTS', 'NO') != 'YES', "MYSQL_TESTS_TESTS not set in environment variables")
+
+@skipIf(os.getenv('MYSQL_TESTS', 'NO') != 'YES', "MYSQL_TESTS_TESTS not set in environment variables")
 class TestCaseManifest(unittest.TestCase):
 
     def setUp(self):
