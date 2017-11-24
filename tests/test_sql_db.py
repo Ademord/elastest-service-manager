@@ -7,15 +7,12 @@ from unittest import skipIf
 import unittest
 import os
 
+
+DriverSQL.set_up()
+
+
 # @skipIf(os.getenv('MYSQL_TESTS', 'NO') != 'YES', "MYSQL_TESTS_TESTS not set in environment variables")
 class TestCaseManifestManifest(unittest.TestCase):
-
-    def test_db_connect_successful(self):
-        connection = DriverSQL.get_connection()
-        self.assertIsNotNone(connection)
-        connection.close()
-        wait_time = 0
-        DriverSQL.set_up(wait_time)
 
     def test_db_connect_successful(self):
         connection = DriverSQL.get_connection()

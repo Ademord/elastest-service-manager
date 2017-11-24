@@ -11,7 +11,6 @@ from esm.models.plan import Plan
 from esm.models.plan_metadata import PlanMetadata
 # INSTANCE
 from esm.models.service_instance import ServiceInstance
-
 # HELPER
 from orator import DatabaseManager, Schema
 from orator import Model
@@ -26,14 +25,196 @@ import time
 import os
 
 
+class DriverSQL:
+    @staticmethod
+    def get_connection():
+        try:
+            connection = pymysql.connect(
+                host=Helper.host,
+                port=Helper.port,
+                user=Helper.user,
+                password=Helper.password,
+                db=Helper.database,
+                charset='utf8mb4',
+                cursorclass=pymysql.cursors.DictCursor
+            )
+            return connection
+        except pymysql.err.OperationalError as e:
+            print('* Error connecting to DB: ', e)
+            return None
+
+    @staticmethod
+    def set_up(wait_time=10):
+        connection = DriverSQL.get_connection()
+        count = 3
+        while not connection and count:
+            # print('Retrying to connect to Database \'{}\'...'.format(Helper.database))
+            count = count - 1
+            time.sleep(wait_time)
+            connection = DriverSQL.get_connection()
+
+        if connection:
+            # print('Successfully connected to Database \'{}\'...'.format(Helper.database))
+            connection.close()
+        else:
+            raise Exception('Could not connect to the DB')
+
+    @staticmethod
+    def get_service(service_id: str=None) -> List[ServiceType]:
+        if service_id:
+            if ServiceTypeAdapter.exists_in_db(service_id):
+                model_sql = ServiceTypeAdapter.find_by_id_name(service_id)
+                model = ServiceTypeAdapter.model_sql_to_model(model_sql)
+                return [model]
+            else:
+                return []
+        else:
+            return ServiceTypeAdapter.get_all()
+
+    @staticmethod
+    def add_service(service: ServiceType) -> tuple:
+        if ServiceTypeAdapter.exists_in_db(service.id):
+            return 'The service already exists in the catalog.', 409
+
+        PlanAdapter.create_table()
+        PlanServiceTypeAdapter.create_table()
+
+        ServiceTypeAdapter.save(service)
+        if ServiceTypeAdapter.exists_in_db(service.id):
+            return 'Service added successfully', 200
+        else:
+            return 'Could not save the Service in the DB', 500
+
+    @staticmethod
+    def delete_service(service_id: str = None) -> tuple:
+        if service_id:
+            if ServiceTypeAdapter.exists_in_db(service_id):
+                ServiceTypeAdapter.delete(service_id)
+                return 'Service Deleted', 200
+            else:
+                return 'Service ID not found', 500
+        else:
+            PlanServiceTypeAdapter.delete_all()
+            ServiceInstanceAdapter.delete_all()
+            ManifestAdapter.delete_all()
+            ServiceTypeAdapter.delete_all()
+            PlanAdapter.delete_all()
+            return 'Deleted all Services', 200
+
+    @staticmethod
+    def get_manifest(manifest_id: str = None, plan_id: str = None):  # -> List[Manifest]
+        if manifest_id and plan_id:
+            raise Exception('Query Manifests only by manifest_id OR plan_id')
+
+        if plan_id:
+            manifests = ManifestSQL.where('plan_id', '=', '{}'.format(plan_id)).get().serialize()
+            if manifests:
+                manifest_id = manifests[0]['id']
+
+        if manifest_id:
+            if ManifestAdapter.exists_in_db(manifest_id):
+                model_sql = ManifestAdapter.find_by_id_name(manifest_id)
+                model = ManifestAdapter.model_sql_to_model(model_sql)
+                model.manifest_content = model.manifest_content.replace('</br>', '\n')
+                return [model]
+            else:
+                return []
+        else:
+            manifests = ManifestAdapter.get_all()
+            for manifest in manifests:
+                manifest.manifest_content = manifest.manifest_content.replace('</br>', '\n')
+            return manifests
+
+    @staticmethod
+    def add_manifest(manifest) -> tuple:
+        if ManifestAdapter.exists_in_db(manifest.id):
+            return 'The Manifest already exists in the catalog.', 409
+
+        ''' Attempt to Create Table '''
+        PlanAdapter.create_table()
+        ServiceTypeAdapter.create_table()
+
+        ManifestAdapter.save(manifest)
+        if ManifestAdapter.exists_in_db(manifest.id):
+            return 'Manifest added successfully', 200
+        else:
+            return 'Could not save the Manifest in the DB', 500
+
+    @staticmethod
+    def delete_manifest(manifest_id: str = None):  # -> None:
+        if manifest_id:
+            if ManifestAdapter.exists_in_db(manifest_id):
+                ManifestAdapter.delete(manifest_id)
+                return 'Manifest Deleted', 200
+            else:
+                return 'Manifest ID not found', 500
+        else:
+            ManifestAdapter.delete_all()
+            return 'Deleted all Manifests', 200
+
+    @staticmethod
+    def get_service_instance(instance_id: str = None) -> List[ServiceInstance]:
+        if instance_id:
+            if ServiceInstanceAdapter.exists_in_db(instance_id):
+                model_sql = ServiceInstanceAdapter.find_by_id_name(instance_id)
+                model = ServiceInstanceAdapter.model_sql_to_model(model_sql)
+                return [model]
+            else:
+                return []
+        else:
+            models = ServiceInstanceAdapter.get_all()
+            return models
+
+    @staticmethod
+    def add_service_instance(instance: ServiceInstance) -> tuple:
+        id_name = ServiceInstanceAdapter.get_id(instance)
+        if ServiceInstanceAdapter.exists_in_db(id_name):
+            return 'The Instance already exists in the catalog.', 409
+
+        ''' Attempt to Create Table '''
+        PlanAdapter.create_table()
+        ServiceTypeAdapter.create_table()
+        ServiceTypeAdapter.create_table()
+        ServiceInstanceAdapter.create_table()
+        ServiceInstanceAdapter.save(instance)
+
+        id_name = ServiceInstanceAdapter.get_id(instance)
+        if ServiceInstanceAdapter.exists_in_db(id_name):
+            return 'Instance added successfully', 200
+        else:
+            return 'Could not save the Instance in the DB', 500
+
+    @staticmethod
+    def delete_service_instance(instance_id: str = None):  # -> None:
+        if instance_id:
+            if ServiceInstanceAdapter.exists_in_db(instance_id):
+                ServiceInstanceAdapter.delete(instance_id)
+                return 'Instance Deleted', 200
+            else:
+                return 'Instance ID not found', 500
+        else:
+            ServiceInstanceAdapter.delete_all()
+            return 'Deleted all Instances', 200
+
+
+'''    *******************
+    *******************
+    **** TESTED CODE **
+    *******************
+    **** INSTANCE *****
+    *******************
+    ******** ♥ ********
+    *******************
+'''
+
+
 class LastOperationAdapter(LastOperation):
     @staticmethod
-    def sample_model(name='instance1'):
-        my_dict = {
-            'state': name,
-            'description': name
-        }
-        return my_dict
+    def sample_model(name='instance1') -> LastOperation:
+        model = LastOperation()
+        model.state = name
+        model.description = name
+        return model
 
     @classmethod
     def to_blob(cls, model: LastOperation) -> dict:
@@ -50,7 +231,7 @@ class LastOperationAdapter(LastOperation):
 
 
 class ServiceInstanceSQL(Model):
-    __table__ = 'service_types'
+    __table__ = 'service_instance'
 
     @belongs_to
     def service(self):
@@ -58,11 +239,21 @@ class ServiceInstanceSQL(Model):
 
     def __init__(self):
         super(ServiceInstanceSQL, self).__init__()
-        Model.ServiceInstanceSQL(Helper.db)
+        Model.set_connection_resolver(Helper.db)
+
+    ''' 
+        UPDATE WITH:
+        self.swagger_types = {
+                'service_type': ServiceType, (this is a service_id)
+                'state': LastOperation, (this is a operation_id)
+                'context': object (no idea what kind of object...)
+            }
+
+    '''
 
     @classmethod
     def create_table(cls):
-        with Helper.schema.create('service_instance') as table:
+        with Helper.schema.create(cls.__table__) as table:
             table.increments('id')
             ''' STRINGS '''
             table.string('id_name').unique()
@@ -73,6 +264,9 @@ class ServiceInstanceSQL(Model):
             ''' OBJECTS '''
             table.string('state')
             table.string('context').nullable()
+            ''' DATES '''
+            table.datetime('created_at')
+            table.datetime('updated_at')
 
     @classmethod
     def table_exists(cls):
@@ -81,18 +275,8 @@ class ServiceInstanceSQL(Model):
     @classmethod
     def delete_all(cls):
         if Helper.schema.has_table(cls.__table__):
-            Helper.db.table(cls.__table__).truncate()
-
-
-''' 
-    UPDATE WITH:
-    self.swagger_types = {
-            'service_type': ServiceType, (this is a service_id)
-            'state': LastOperation, (this is a operation_id)
-            'context': object (no idea what kind of object...)
-        }
-
-'''
+            # Helper.db.table(cls.__table__).truncate()
+            Helper.schema.drop_if_exists(cls.__table__)
 
 
 class ServiceInstanceAdapter:
@@ -102,12 +286,12 @@ class ServiceInstanceAdapter:
             ServiceInstanceSQL.create_table()
 
     @staticmethod
-    def sample_model() -> ServiceInstance:
+    def sample_model(name='instance1') -> ServiceInstance:
         model = ServiceInstance()
         ''' OBJECT '''
-        model.service_type = ServiceTypeAdapter.sample_model()
+        model.service_type = ServiceTypeAdapter.sample_model(name)
         ''' OBJECT '''
-        model.state = LastOperationAdapter.sample_model()
+        model.state = LastOperationAdapter.sample_model(name)
         ''' OBJECT '''
         model.context = {'id': 'instance1'}
         return model
@@ -136,7 +320,7 @@ class ServiceInstanceAdapter:
     def model_sql_to_model(model_sql: ServiceInstanceSQL) -> ServiceInstance:
         model = ServiceInstance()
         ''' OBJECT '''
-        service_sql = ServiceTypeAdapter.find_by_id_name(model_sql.service_type_id_name)
+        service_sql = ServiceTypeAdapter.find_by_id_name(model_sql.service_id_name)
         model.service_type = ServiceTypeAdapter.model_sql_to_model(service_sql)
         ''' OBJECT '''
         model.state = LastOperationAdapter.from_blob(model_sql.state)
@@ -210,14 +394,14 @@ class ServiceInstanceAdapter:
 
 
 '''
-    ********************
-    ********************
-    **** TESTED CODE ***
-    ********************
-    **** MANIFEST ******
-    ********************
-    ******** ♥ *********
-    ********************
+    *******************
+    *******************
+    **** TESTED CODE **
+    *******************
+    **** MANIFEST *****
+    *******************
+    ******** ♥ ********
+    *******************
 '''
 
 
@@ -438,6 +622,19 @@ class PlanSQL(Model):
         if Helper.schema.has_table(cls.__table__):
             Helper.db.table(cls.__table__).truncate()
 
+    '''
+        self.swagger_types = {
+            'id': str,
+            'name': str,
+            'description': str,
+
+            'free': bool,
+            'bindable': bool
+
+            'metadata': PlanMetadata,
+        }
+    '''
+
     @classmethod
     def create_table(cls):
         with Helper.schema.create(cls.__table__) as table:
@@ -458,20 +655,6 @@ class PlanSQL(Model):
     @classmethod
     def table_exists(cls):
         return Helper.schema.has_table(cls.__table__)
-
-
-'''
-    self.swagger_types = {
-        'id': str,
-        'name': str,
-        'description': str,
-
-        'free': bool,
-        'bindable': bool
-
-        'metadata': PlanMetadata,
-    }
-'''
 
 
 class PlanAdapter:
@@ -596,17 +779,20 @@ class PlanAdapter:
         return [PlanAdapter.model_sql_to_model(plan_sql) for plan_sql in service_sql.plans.all()]
 
 
-'''
-       self.swagger_types = {
-            'bullets': str,
-            'display_name': str,
-            'costs': object,
-            'extras': object
-
-'''
-
-
 class PlanMetadataAdapter(PlanMetadata):
+    @classmethod
+    def from_blob(cls, blob) -> PlanMetadata:
+        return cls.from_dict(dict(json.loads(blob)))
+
+    '''
+           self.swagger_types = {
+                'bullets': str,
+                'display_name': str,
+                'costs': object,
+                'extras': object
+
+    '''
+
     @classmethod
     def to_blob(cls, model: PlanMetadata) -> dict:
         my_dict = {}
@@ -619,147 +805,16 @@ class PlanMetadataAdapter(PlanMetadata):
         my_dict['extras'] = model._extras
         return json.dumps(my_dict)
 
-    @classmethod
-    def from_blob(cls, blob) -> PlanMetadata:
-        return cls.from_dict(dict(json.loads(blob)))
-
-
-class DriverSQL:
-    @staticmethod
-    def get_connection():
-        try:
-            connection = pymysql.connect(
-                host=Helper.host,
-                port=Helper.port,
-                user=Helper.user,
-                password=Helper.password,
-                db=Helper.database,
-                charset='utf8mb4',
-                cursorclass=pymysql.cursors.DictCursor
-            )
-            return connection
-        except pymysql.err.OperationalError as e:
-            print('* Error connecting to DB: ', e)
-            return None
-
-    @staticmethod
-    def set_up(wait_time=10):
-        connection = DriverSQL.get_connection()
-        count = 3
-        while not connection and count:
-            # print('Retrying to connect to Database \'{}\'...'.format(Helper.database))
-            count = count - 1
-            time.sleep(wait_time)
-            connection = DriverSQL.get_connection()
-
-        if connection:
-            # print('Successfully connected to Database \'{}\'...'.format(Helper.database))
-            connection.close()
-        else:
-            raise Exception('Could not connect to the DB')
-
-    @staticmethod
-    def get_service(service_id: str=None) -> List[ServiceType]:
-        if service_id:
-            if ServiceTypeAdapter.exists_in_db(service_id):
-                model_sql = ServiceTypeAdapter.find_by_id_name(service_id)
-                model = ServiceTypeAdapter.model_sql_to_model(model_sql)
-                return [model]
-            else:
-                return []
-        else:
-            return ServiceTypeAdapter.get_all()
-
-    @staticmethod
-    def add_service(service: ServiceType) -> tuple:
-        if ServiceTypeAdapter.exists_in_db(service.id):
-            return 'The service already exists in the catalog.', 409
-
-        PlanAdapter.create_table()
-        PlanServiceTypeAdapter.create_table()
-
-        ServiceTypeAdapter.save(service)
-        if ServiceTypeAdapter.exists_in_db(service.id):
-            return 'Service added successfully', 200
-        else:
-            return 'Could not save the Service in the DB', 500
-
-    @staticmethod
-    def delete_service(service_id: str = None) -> tuple:
-        if service_id:
-            if ServiceTypeAdapter.exists_in_db(service_id):
-                ServiceTypeAdapter.delete(service_id)
-                return 'Service Deleted', 200
-            else:
-                return 'Service ID not found', 500
-        else:
-            PlanServiceTypeAdapter.delete_all()
-            ManifestAdapter.delete_all()
-            ServiceTypeAdapter.delete_all()
-            PlanAdapter.delete_all()
-            return 'Deleted all Services', 200
-
-    @staticmethod
-    def get_manifest(manifest_id: str = None, plan_id: str = None):  # -> List[Manifest]
-        if manifest_id and plan_id:
-            raise Exception('Query manifests only by manifest_id OR plan_id')
-
-        if plan_id:
-            manifests = ManifestSQL.where('plan_id', '=', '{}'.format(plan_id)).get().serialize()
-            if manifests:
-                manifest_id = manifests[0]['id']
-
-        if manifest_id:
-            if ManifestAdapter.exists_in_db(manifest_id):
-                model_sql = ManifestAdapter.find_by_id_name(manifest_id)
-                model = ManifestAdapter.model_sql_to_model(model_sql)
-                model.manifest_content = model.manifest_content.replace('</br>', '\n')
-                return [model]
-            else:
-                return []
-        else:
-            manifests = ManifestAdapter.get_all()
-            for manifest in manifests:
-                manifest.manifest_content = manifest.manifest_content.replace('</br>', '\n')
-            return manifests
-
-    @staticmethod
-    def add_manifest(manifest) -> tuple:
-        if ManifestAdapter.exists_in_db(manifest.id):
-            return 'The service already exists in the catalog.', 409
-
-        ''' Attempt to Create Table '''
-        PlanAdapter.create_table()
-        ServiceTypeAdapter.create_table()
-
-        ManifestAdapter.save(manifest)
-        if ManifestAdapter.exists_in_db(manifest.id):
-            return 'Service added successfully', 200
-        else:
-            return 'Could not save the Service in the DB', 500
-
-    @staticmethod
-    def delete_manifest(manifest_id: str = None):  # -> None:
-        if manifest_id:
-            if ManifestAdapter.exists_in_db(manifest_id):
-                ManifestAdapter.delete(manifest_id)
-                return 'Manifest Deleted', 200
-            else:
-                return 'Manifest ID not found', 500
-        else:
-            ManifestAdapter.delete_all()
-            return 'Deleted all Manifests', 200
-
 
 '''
-    ********************
-    ********************
-    **** TESTED CODE ***
-    ********************
-    ***** SERVICE ******
-    ********************
-    ******** ♥ *********
-    ********************
+    *******************
+    *******************
+    **** TESTED CODE **
+    *******************
+    *** PLAN-SERVICE **
+    *******************
+    ******** ♥ ********
+    *******************
 '''
 
 
@@ -769,6 +824,10 @@ class ServiceTypeSQL(Model):
     @has_many('service_id')   # foreign key
     def manifests(self):
         return ManifestSQL
+
+    @has_many('service_id')   # foreign key
+    def instances(self):
+        return ServiceInstanceSQL
 
     @belongs_to_many
     def plans(self):
@@ -843,6 +902,18 @@ class PlanServiceTypeAdapter:
     @classmethod
     def delete_all(cls):
         PlanServiceTypeSQL.delete_all()
+
+
+'''
+    *******************
+    *******************
+    **** TESTED CODE **
+    *******************
+    ***** SERVICE *****
+    *******************
+    ******** ♥ ********
+    *******************
+'''
 
 
 class ServiceTypeAdapter:
@@ -1026,14 +1097,14 @@ class ServiceMetadataAdapter(ServiceMetadata):
 
 
 '''
-    ********************
-    ********************
-    **** TESTED CODE ***
-    ********************
-    ***** EXTRAS *******
-    ********************
-    ******** ♥ *********
-    ********************
+    *******************
+    *******************
+    **** TESTED CODE **
+    *******************
+    ***** EXTRAS ******
+    *******************
+    ******** ♥ ********
+    *******************
 '''
 
 

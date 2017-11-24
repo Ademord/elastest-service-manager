@@ -24,7 +24,7 @@ from esm.models.last_operation import LastOperation
 from esm.models.manifest import Manifest
 from esm.models.service_instance import ServiceInstance
 from esm.models.service_type import ServiceType
-from adapters.storage_sql import MySQL_Driver
+from adapters.sql_datasource import DriverSQL
 
 # TODO implement exception handling
 
@@ -395,7 +395,7 @@ mongo_host = os.getenv('ESM_MONGO_HOST', '')
 if len(mongo_host):
     STORE = MongoDBStore(mongo_host)
 # elif os.getenv('ESM_SQL_HOST'):
-#     STORE = MySQL_Driver()
+#     STORE = DriverSQL()
 else:
     STORE = InMemoryStore()
 
