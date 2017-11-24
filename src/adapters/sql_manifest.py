@@ -2,12 +2,19 @@ from orator import Model
 
 from esm.models.manifest import Manifest
 from adapters.sql_datasource import Helper
-
+from adapters.sql_datasource import ServiceTypeSQL
+from adapters.sql_datasource import ServiceTypeAdapter
+from adapters.sql_datasource import PlanAdapter
+from orator.orm import belongs_to
 import json
 
 
 class ManifestSQL(Model):
     __table__ = 'service_manifests'
+
+    @belongs_to
+    def service(self):
+        return ServiceTypeSQL
 
     def __init__(self):
         super(ManifestSQL, self).__init__()
@@ -15,8 +22,32 @@ class ManifestSQL(Model):
 
     @classmethod
     def delete_all(cls):
-        Helper.db.table(cls.__table__).truncate()
+        if Helper.schema.has_table(cls.__table__):
+            Helper.db.table(cls.__table__).truncate()
 
+    @classmethod
+    def create_table(cls):
+        with Helper.schema.create(cls.__table__) as table:
+            with Helper.schema.create('service_manifest') as table:
+                table.increments('id')
+                ''' STRINGS '''
+                table.string('id_name').unique()
+                table.string('manifest_type')
+                table.string('manifest_content')
+                ''' FOREIGN KEY '''
+                table.string('service_id_name')
+                table.integer('service_id').unsigned()
+                table.foreign('service_id').references('id').on('service_types')
+                ''' FOREIGN KEY '''
+                table.string('plan_id_name')
+                table.integer('plan_id').unsigned()
+                table.foreign('plan_id').references('id').on('plans')
+                ''' OBJECTS '''
+                table.string('endpoints').nullable()
+
+    @classmethod
+    def table_exists(cls):
+        return Helper.schema.has_table(cls.__table__)
 
 ''' 
     UPDATE WITH:
@@ -35,34 +66,44 @@ class ManifestSQL(Model):
 class ManifestAdapter:
     @staticmethod
     def create_table():
-        try:
-            with Helper.schema.create('service_manifest') as table:
-                table.increments('id')
-                ''' STRINGS '''
-                # TODO note that the field is to be rendered as id to be compliant with OSBA
-                table.string('id_name').unique()
-                table.string('plan_id')
-                table.string('service_id')
-                table.string('manifest_type')
-                table.string('manifest_content')
-                ''' OBJECTS '''
-                table.string('endpoints').nullable()
-        except:
-            pass
+        if not ManifestSQL.table_exists():
+            ManifestSQL.create_table()
 
     @staticmethod
     def sample_model() -> Manifest:
         model = Manifest()
-        model.id = 1
         ''' STRINGS '''
-        model.id_name = 'id_name'
+        model.id = 'id_name'
         model.plan_id = 'plan_id'
         model.service_id = 'service_id'
         model.manifest_type = 'manifest_type'
         model.manifest_content = 'manifest_content'
         ''' OBJECTS '''
-        model.endpoints = object()  # TODO no explict model for this, dict is narrower
+        model.endpoints = {'endpoint': 'endpoint'}  # using dict
         return model
+
+    @staticmethod
+    def model_to_model_sql(model: Manifest):
+        model_sql = ManifestSQL()
+        ''' STRINGS '''
+        model_sql.id_name = model.id
+        model_sql.manifest_type = model.manifest_type
+        model_sql.manifest_content = model.manifest_content
+        ''' FOREIGN KEY '''
+        model_sql.service_id_name = model.service_id
+        service = ServiceTypeAdapter.find_by_id_name(model.service_id)
+        if not service:
+            raise Exception('Bad Service ID provided')
+        model_sql.service_id =  service.id
+        ''' FOREIGN KEY '''
+        model_sql.plan_id_name = model.plan_id
+        plan = PlanAdapter.find_by_id_name(model.plan_id)
+        if not plan:
+            raise Exception('Bad Plan ID provided')
+        model_sql.plan_id = PlanAdapter.find_by_id_name(model.plan_id)
+        ''' OBJECTS '''
+        model_sql.endpoints = Helper.to_blob(model.endpoints)
+        return model_sql
 
     @classmethod
     def sample_model_sql(cls) -> ManifestSQL:
@@ -74,28 +115,15 @@ class ManifestAdapter:
         model = Manifest()
         ''' STRINGS '''
         model.id_name = model_sql.id_name
-        model.plan_id = model_sql.plan_id
-        model.service_id = model_sql.service_id
         model.manifest_type = model_sql.manifest_type
         model.manifest_content = model_sql.manifest_content
+        ''' FOREIGN KEY '''
+        model.service_id = model_sql.service_id_name
+        ''' FOREIGN KEY '''
+        model.plan_id = model_sql.plan_id_name
         ''' OBJECTS '''
-        model.endpoints = model_sql.endpoints  # TODO no explict model for this the adapter???
-        # model.dashboard_client = DashboardClientAdapter.from_blob(model_sql.dashboard_client)
+        model.endpoints = model_sql.endpoints
         return model
-
-    @staticmethod
-    def model_to_model_sql(model: Manifest):
-        model_sql = ManifestSQL()
-        ''' STRINGS '''
-        model_sql.id_name = model.id
-        model_sql.plan_id = model.plan_id
-        model_sql.service_id = model.service_id
-        model_sql.manifest_type = model.manifest_type
-        model_sql.manifest_content = model.manifest_content
-        ''' OBJECTS '''
-        model_sql.endpoints = model.endpoints  # TODO no explict model for this the adapter???
-        # model_sql.metadata = ServiceMetadataAdapter.to_blob(model.metadata)
-        return model_sql
 
     @staticmethod
     def save(model: Manifest) -> ManifestSQL:
@@ -103,13 +131,22 @@ class ManifestAdapter:
         if model_sql:
             ''' STRINGS '''
             model_sql.id_name = model.id
-            model_sql.plan_id = model.plan_id
-            model_sql.service_id = model.service_id
             model_sql.manifest_type = model.manifest_type
             model_sql.manifest_content = model.manifest_content
+            ''' FOREIGN KEY '''
+            model_sql.service_id_name = model.service_id
+            service = ServiceTypeAdapter.find_by_id_name(model.service_id)
+            if not service:
+                raise Exception('Bad Service ID provided')
+            model_sql.service_id =  service.id
+            ''' FOREIGN KEY '''
+            model_sql.plan_id_name = model.plan_id
+            plan = PlanAdapter.find_by_id_name(model.plan_id)
+            if not plan:
+                raise Exception('Bad Plan ID provided')
+            model_sql.plan_id = PlanAdapter.find_by_id_name(model.plan_id)
             ''' OBJECTS '''
-            model_sql.endpoints = model.endpoints  # TODO no explict model for this the adapter???
-            # model_sql.metadata = ServiceMetadataAdapter.to_blob(model.metadata)
+            model_sql.endpoints = Helper.to_blob(model.endpoints)
         else:
             model_sql = ManifestAdapter.model_to_model_sql(model)
             model_sql.save()

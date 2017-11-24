@@ -4,6 +4,7 @@ from adapters.sql_datasource import PlanAdapter
 from adapters.sql_datasource import DriverSQL
 from adapters.sql_datasource import ServiceTypeAdapter
 from adapters.sql_datasource import PlanServiceTypeAdapter
+from adapters.sql_datasource import ManifestAdapter
 
 from unittest.mock import patch
 from unittest import skipIf
@@ -29,20 +30,6 @@ class TestCasePlan(unittest.TestCase):
         with self.assertRaises(orator.exceptions.query.QueryException):
             PlanSQL.create_table()
 
-    def test_db_connect_successful(self):
-        connection = DriverSQL.get_connection()
-        self.assertIsNotNone(connection)
-        connection.close()
-        wait_time = 0
-        DriverSQL.set_up(wait_time)
-
-    @patch.object(DriverSQL, 'get_connection')
-    def test_db_connect_not_successful(self, mock_connection):
-        wait_time = 0
-        mock_connection.return_value = None
-        with self.assertRaises(Exception):
-            DriverSQL.set_up(wait_time)
-
     def test_sample_model(self):
         self.assertIsInstance(self.test_model, Plan)
         model_sql = PlanAdapter.sample_model_sql()
@@ -64,11 +51,12 @@ class TestCasePlan(unittest.TestCase):
         results = PlanAdapter.get_all()
         self.assertGreater(len(results), 0)
 
-    def test_adapter_delete_all(self):
-        PlanServiceTypeAdapter.delete_all()
-        PlanAdapter.delete_all()
-        results = PlanAdapter.get_all()
-        self.assertEqual(len(results), 0)
+    # def test_adapter_delete_all(self):
+    #     PlanServiceTypeAdapter.delete_all()
+    #     ManifestAdapter.delete_all()
+    #     PlanAdapter.delete_all()
+    #     results = PlanAdapter.get_all()
+    #     self.assertEqual(len(results), 0)
 
     def test_adapter_create_from_service(self):
         service = ServiceTypeAdapter.sample_model()
